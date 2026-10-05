@@ -2143,8 +2143,8 @@ function vRelatorios(parte){
   '<div class="row" style="margin-bottom:11px">'+
    '<div style="width:180px"><label class="fl">Empresa</label><select id="upEmp">'+S.empresas.map(e=>'<option value="'+e.id+'"'+(e.id===EMP?" selected":"")+'>'+esc(e.nome)+'</option>').join("")+'</select></div>'+
    '<div style="width:170px"><label class="fl">Mês</label><input type="month" id="upMes" value="'+mp+'"></div></div>'+
-  '<div class="drop" id="drop"><b>Arraste a planilha aqui</b> ou clique para escolher<div class="tiny" style="margin-top:5px">.xlsx · .xls · .csv</div></div>'+
-  '<input type="file" id="fx" accept=".xlsx,.xls,.csv,.xlsm"><div id="upRes"></div></div>';
+  '<div class="drop" id="drop"><b>Arraste as planilhas aqui</b> — pode soltar várias de uma vez (anúncios, vendas, Vendas_BR, as 5 do mês) ou clique para escolher<div class="tiny" style="margin-top:5px">.xlsx · .xls · .csv · a Central reconhece cada uma e guarda na loja certa</div></div>'+
+  '<input type="file" id="fx" multiple accept=".xlsx,.xls,.csv,.xlsm"><div id="upRes"></div></div>';
  if(parte==="topo")return h;
  if(parte==="hist")h="";
  const meses=mesesDe(EMP);
@@ -3832,8 +3832,8 @@ function bind(){
  if(dp){dp.onclick=()=>fx.click();
   dp.ondragover=e=>{e.preventDefault();dp.classList.add("over");};
   dp.ondragleave=()=>dp.classList.remove("over");
-  dp.ondrop=e=>{e.preventDefault();dp.classList.remove("over");if(e.dataTransfer.files[0])subirRel(e.dataTransfer.files[0]);};
-  fx.onchange=e=>{if(e.target.files[0])subirRel(e.target.files[0]);e.target.value="";};}
+  dp.ondrop=e=>{e.preventDefault();dp.classList.remove("over");subirVarios(e.dataTransfer.files);};
+  fx.onchange=e=>{subirVarios(e.target.files);e.target.value="";};}
  $$("[data-det]").forEach(li=>li.onclick=()=>{DET=li.dataset.det;render();});
  $$("[data-back]").forEach(b=>b.onclick=()=>{DET=null;render();});
  $$("[data-delrel]").forEach(b=>b.onclick=()=>{if(!confirm("Excluir este relatório?"))return;
@@ -3938,7 +3938,7 @@ function confirmaRel(){
  bind();toast(TIPOS[tp]+" guardado em "+emp(ei).nome,"ok");}
 function subirRel(f){
  const fr=new FileReader();
- fr.onload=()=>{let wb;
+ fr.onload=()=>{UPBUSY=false;setTimeout(subirProximo,60);let wb;
   try{wb=lerXLSX(new Uint8Array(fr.result));}
   catch(e){$("#upRes").innerHTML='<div class="aviso">Não consegui ler <b>'+esc(f.name)+'</b>: '+esc(e.message)+'</div>';return;}
   if(typeof trocaLojaSeArquivoFor==="function")trocaLojaSeArquivoFor(f.name,wb);
@@ -6273,6 +6273,12 @@ function contasMLHTML(){const C=CONTAS_ML();
 function bindContasML(){$$("[data-contaml]").forEach(el=>el.onchange=()=>{S.contasML=S.contasML||{};S.contasML[el.dataset.contaml]=el.value;marcar();persistir();toast("Conta ligada à "+emp(el.value).nome,"ok");});
  $$("[data-contadel]").forEach(b=>b.onclick=()=>{S.contasML=S.contasML||{};S.contasML[b.dataset.contadel]="";marcar();persistir();render();});
  const a=$("#bContaAdd");if(a)a.onclick=()=>{const n=($("#contaNova").value||"").replace(/\D/g,"");if(!n){toast("Digite o número da conta","err");return;}S.contasML=S.contasML||{};S.contasML[n]=$("#contaNovaEmp").value;marcar();persistir();render();};}
+
+/* ─────────── vários arquivos de uma vez (arrastar 3 planilhas juntas) ─────────── */
+let UPQ=[],UPBUSY=false,UPTOT=0;
+function subirVarios(fs){const L=Array.from(fs||[]).filter(f=>f&&f.name);if(!L.length)return;UPQ=UPQ.concat(L);UPTOT=UPQ.length+(UPBUSY?1:0);if(L.length>1)toast(L.length+" arquivos na fila — vou subir um por um","ok");subirProximo();}
+function subirProximo(){if(UPBUSY)return;if(typeof PENDUP!=="undefined"&&PENDUP){setTimeout(subirProximo,500);return;}const f=UPQ.shift();if(!f){UPTOT=0;return;}UPBUSY=true;
+ const u=$("#upRes");if(u&&UPTOT>1)u.insertAdjacentHTML("afterbegin",'<div class="tiny" id="upFila">Subindo '+esc(f.name)+' ('+(UPTOT-UPQ.length)+' de '+UPTOT+')…</div>');subirRel(f);}
 /* ─────────── QUAIS 5 ANÚNCIOS FAZER HOJE — a Central indica, com todos os dados da conta ───────────
    Fontes: planilha de anúncios (o que já existe), planilha de vendas (curva A, o que os clientes compram 2×/3×), cadastro (grade de kits e custo), ticket médio (faixa CARO/BARATO do dia). */
 function sugDemanda(){/* base|total → {n, kit, un, fontes} : clientes comprando várias unidades do mesmo anúncio (planilha de vendas/CMV + relatório Vendas_BR do ML) */
